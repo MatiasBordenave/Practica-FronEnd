@@ -37,8 +37,6 @@ export const UserListTable = ({ users = [], currentUser, onEdit, onDelete }: any
                             canEdit = isOwnProfile;
                         }
 
-                        // 2. ¿Quién puede borrar?
-                        // El Admin no puede borrar al Superadmin, y por seguridad, tampoco a otro Admin.
                         const canDelete = !isOwnProfile && (
                             myRole === 'superadmin' || 
                             (myRole === 'admin' && targetRole !== 'superadmin' && targetRole !== 'admin')
