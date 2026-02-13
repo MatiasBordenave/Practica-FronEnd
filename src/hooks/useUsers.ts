@@ -1,10 +1,10 @@
 import { API_ENDPOINTS } from '../constants/constants';
-import { useAuthStore } from '../store/useAuthStore'; // Importamos el store
+import { useAuthStore } from '../store/useAuthStore';
 
 export const useUsers = (refreshCallback: () => void) => {
-    // Usamos el token de Zustand para mayor seguridad
     const token = useAuthStore(state => state.token) || localStorage.getItem('token');
-    const { user: currentUser, setAuth } = useAuthStore();
+    // Extraemos correctamente updateUser y el usuario actual
+    const { user: currentUser, updateUser } = useAuthStore();
 
     const deleteUser = async (id: number) => {
         if (!confirm("¿Estás seguro de eliminar este usuario?")) return;
@@ -34,18 +34,29 @@ export const useUsers = (refreshCallback: () => void) => {
             });
 
             if (response.ok) {
-                // Si editamos nuestro propio perfil, actualizamos el store de Zustand
+                const result = await response.json();
+                const updatedUserData = result.user || result;
+
+                // Si editamos nuestro propio perfil, actualizamos el store global
                 if (id && String(id) === String(currentUser?.id)) {
-                    const updatedUser = { ...currentUser, ...data };
-                    // Guardamos los nuevos datos en Zustand y LocalStorage
-                    setAuth(token as string, updatedUser as any);
+                    
+                    // USAMOS UPDATEUSER EN LUGAR DE SETAUTH
+                    updateUser(updatedUserData);
+                    
+                    // Validamos si el rol cambió para refrescar la seguridad de la App
+                    if (updatedUserData.role !== currentUser.role) {
+                        // Un pequeño delay para que Zustand persista en LocalStorage antes de recargar
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 300);
+                    }
                 }
                 
-                refreshCallback(); // Refresca la tabla
+                refreshCallback(); 
                 return true;
             }
         } catch (err) {
-            console.error("Error al guardar usuario:", err);
+            console.error("Error:", err);
         }
         return false;
     };

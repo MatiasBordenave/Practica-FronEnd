@@ -1,30 +1,12 @@
-import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import { useAuthStore } from '../store/useAuthStore'; // Importamos el store
 
 export const NavBar = () => {
-  const [user, setUser] = useState<any>(null);
-  const navigate = useNavigate();
-
-  // Cargamos el usuario al montar el componente
-  useEffect(() => {
-    const savedUser = localStorage.getItem("user");
-    if (savedUser) {
-      try {
-        setUser(JSON.parse(savedUser));
-      } catch (e) {
-        console.error("Error parseando el usuario", e);
-      }
-    }
-  }, []);
+  // 1. Obtenemos el usuario y la función logout directamente de Zustand
+  const { user, logout } = useAuthStore();
 
   const handleLogout = () => {
-    // 1. Limpiamos TODO el rastro del usuario
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    setUser(null);
-
-    // 2. En lugar de navigate, usamos window.location para resetear el estado global de React
-    // Esto asegura que el Dashboard no se quede con "basura" del usuario anterior
+    logout(); // Esto ya limpia el storage (local o session) según lo que configuramos
     window.location.href = "/"; 
   };
 
@@ -39,6 +21,7 @@ export const NavBar = () => {
         <Link to="/" className="text-slate-300 hover:text-white transition-colors">Home</Link>
         <Link to="/noticias" className="text-slate-300 hover:text-white transition-colors">Noticias</Link>
 
+        {/* 2. Ahora 'user' viene de Zustand, por lo que será reactivo */}
         {user ? (
           <>
             <Link to="/dashboard" className="text-slate-300 hover:text-white transition-colors uppercase text-sm font-semibold tracking-wider">
@@ -48,7 +31,6 @@ export const NavBar = () => {
             <div className="flex items-center gap-3 border-l border-slate-700/50 pl-6">
               <div className="text-right">
                 <p className="text-[10px] text-blue-400 uppercase font-bold leading-none mb-1">Conectado</p>
-                {/* Mostramos el username dinámico */}
                 <p className="text-white font-bold text-sm leading-tight capitalize">
                    {user.username || 'Usuario'}
                 </p>

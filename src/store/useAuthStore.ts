@@ -1,32 +1,44 @@
 import { create } from 'zustand';
-
-interface User {
-  id: number; // <--- AGREGAR ESTO
-  username: string;
-  role: string;
-}
+import { persist, createJSONStorage } from 'zustand/middleware';
 
 interface AuthState {
   token: string | null;
-  user: User | null;
-  setAuth: (token: string, user: User) => void;
+  user: any;
+  rememberMe: boolean;
+  setAuth: (token: string, user: any, remember: boolean) => void;
+  // Agregamos esta función para actualizar datos puntuales
+  updateUser: (userData: any) => void; 
   logout: () => void;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
-  token: localStorage.getItem('token'),
-  user: JSON.parse(localStorage.getItem('user') || 'null'),
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set) => ({
+      token: null,
+      user: null,
+      rememberMe: false,
 
-  setAuth: (token, user) => {
-    localStorage.setItem('token', token);
-    localStorage.setItem('user', JSON.stringify(user));
-    set({ token, user });
-  },
+      setAuth: (token, user, remember) => {
+        set({ token, user, rememberMe: remember });
+      },
 
-  logout: () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    set({ token: null, user: null });
-    // Opcional: window.location.href = "/"; para limpiar el estado de React
-  },
-}));
+      // Implementación de la actualización parcial
+      updateUser: (userData) => {
+        set((state) => ({
+          user: { ...state.user, ...userData }
+        }));
+      },
+
+      logout: () => {
+        set({ token: null, user: null, rememberMe: false });
+        // Con persist, esto limpia el localStorage automáticamente por el nombre 'auth-storage'
+        localStorage.removeItem('auth-storage'); 
+        window.location.href = "/";
+      },
+    }),
+    {
+      name: 'auth-storage',
+      storage: createJSONStorage(() => localStorage),
+    }
+  )
+);

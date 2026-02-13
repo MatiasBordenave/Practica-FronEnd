@@ -1,9 +1,23 @@
-export const UserListTable = ({ users = [], currentUser, onEdit, onDelete }: any) => {
-    const user = currentUser || JSON.parse(localStorage.getItem('user') || 'null');
+import { useAuthStore } from '../store/useAuthStore';
 
+export const UserListTable = ({ users = [], onEdit, onDelete }: any) => {
+    // Traemos el usuario logueado desde Zustand
+    const currentUser = useAuthStore((state: any) => state.user);
+
+    // Función segura para detectar si el usuario de la fila soy "YO"
+    const checkIsMe = (rowUser: any) => {
+        if (!currentUser || !rowUser) return false;
+        
+        const matchId = String(rowUser.id) === String(currentUser.id);
+        const matchUsername = rowUser.username === currentUser.username;
+        
+        return matchId || matchUsername;
+    };
+
+    // Ordenar: Primero "Yo", luego el resto
     const sortedUsers = [...(users || [])].sort((a: any, b: any) => {
-        if (String(a.id) === String(user?.id)) return -1;
-        if (String(b.id) === String(user?.id)) return 1;
+        if (checkIsMe(a)) return -1;
+        if (checkIsMe(b)) return 1;
         return 0;
     });
 
@@ -19,22 +33,21 @@ export const UserListTable = ({ users = [], currentUser, onEdit, onDelete }: any
                 </thead>
                 <tbody className="divide-y divide-slate-700/30">
                     {sortedUsers.map((u: any) => {
-                        const isOwnProfile = String(user?.id) === String(u.id) || user?.username === u.username;
+                        // Determinamos si es el perfil del usuario logueado
+                        const isOwnProfile = checkIsMe(u);
                         
-                        // LÓGICA DE JERARQUÍA
-                        const myRole = user?.role?.toLowerCase();
-                        const targetRole = u.role?.toLowerCase();
+                        // Roles para la jerarquía
+                        const myRole = currentUser?.role?.toLowerCase() || '';
+                        const targetRole = u.role?.toLowerCase() || '';
 
-                        // 1. ¿Quién puede editar?
+                        // LÓGICA DE PERMISOS
                         let canEdit = false;
-                        if (myRole === 'superadmin') {
-                            canEdit = true; 
+                        if (isOwnProfile) {
+                            canEdit = true; // Yo siempre puedo editarme
+                        } else if (myRole === 'superadmin') {
+                            canEdit = true; // Superadmin edita a todos
                         } else if (myRole === 'admin') {
-                            // El admin edita a todos menos al superadmin
-                            canEdit = targetRole !== 'superadmin' || isOwnProfile;
-                        } else {
-                            // Usuario común solo a sí mismo
-                            canEdit = isOwnProfile;
+                            canEdit = targetRole !== 'superadmin'; // Admin edita a todos menos superadmin
                         }
 
                         const canDelete = !isOwnProfile && (
@@ -48,7 +61,11 @@ export const UserListTable = ({ users = [], currentUser, onEdit, onDelete }: any
                                     <div className="flex flex-col">
                                         <span className="text-slate-200 font-medium flex items-center gap-2">
                                             {u.username} 
-                                            {isOwnProfile && <span className="bg-blue-500/10 text-blue-400 text-[9px] px-2 py-0.5 rounded-full border border-blue-500/20">Tú</span>}
+                                            {isOwnProfile && (
+                                                <span className="bg-blue-500/10 text-blue-400 text-[9px] px-2 py-0.5 rounded-full border border-blue-500/20">
+                                                    Tú
+                                                </span>
+                                            )}
                                         </span>
                                         <span className="text-slate-500 text-xs">{u.email}</span>
                                     </div>
@@ -68,8 +85,7 @@ export const UserListTable = ({ users = [], currentUser, onEdit, onDelete }: any
                                             <>
                                                 <button 
                                                     onClick={() => onEdit(u)} 
-                                                    title="Editar usuario"
-                                                    className="p-2 text-slate-400 hover:text-blue-400 hover:bg-blue-400/10 rounded-xl transition-all duration-200 active:scale-90"
+                                                    className="p-2 text-slate-400 hover:text-blue-400 hover:bg-blue-400/10 rounded-xl transition-all duration-200"
                                                 >
                                                     <i className="fa-solid fa-pen-to-square text-lg"></i>
                                                 </button>
@@ -77,8 +93,7 @@ export const UserListTable = ({ users = [], currentUser, onEdit, onDelete }: any
                                                 {canDelete && (
                                                     <button 
                                                         onClick={() => onDelete(u.id)} 
-                                                        title="Eliminar usuario"
-                                                        className="p-2 text-slate-400 hover:text-rose-400 hover:bg-rose-400/10 rounded-xl transition-all duration-200 active:scale-90"
+                                                        className="p-2 text-slate-400 hover:text-rose-400 hover:bg-rose-400/10 rounded-xl transition-all duration-200"
                                                     >
                                                         <i className="fa-solid fa-trash-can text-lg"></i>
                                                     </button>

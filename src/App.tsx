@@ -2,28 +2,37 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Main, Login, Register, Dashboard, NotFound } from './constants/constants';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { useAuthStore } from './store/useAuthStore';
+import { useState, useEffect } from 'react';
+import { IdleTimer } from "./components/IdleTimer";
 
 function App() {
-  // Verificamos si ya está logueado para no mostrarle el Login de nuevo
-  const isAuth = !!(useAuthStore((state) => state.token) || localStorage.getItem('token'));
+  const token = useAuthStore((state: any) => state.token);
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  // Esperamos a que Zustand cargue los datos del storage
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
+
+  // Mientras no esté hidratado, mostramos una pantalla de carga o nada
+  if (!isHydrated) return <div className="min-h-screen bg-[#0f172a]" />;
+
+  const isAuth = !!token;
 
   return (
     <BrowserRouter>
+      <IdleTimer />
       <Routes>
-        {/* --- RUTAS PÚBLICAS --- */}
         <Route path="/" element={<Main />} />
         
-        {/* Si ya está logueado y va a login/register, lo mandamos al dashboard */}
-        <Route path="/login" element={isAuth ? <Navigate to="/dashboard" /> : <Login />} />
-        <Route path="/register" element={isAuth ? <Navigate to="/dashboard" /> : <Register />} />
+        {/* Ahora isAuth es confiable porque ya esperamos la hidratación */}
+        <Route path="/login" element={isAuth ? <Navigate to="/dashboard" replace /> : <Login />} />
+        <Route path="/register" element={isAuth ? <Navigate to="/dashboard" replace /> : <Register />} />
 
-        {/* --- RUTAS PRIVADAS (Solo con Token) --- */}
         <Route element={<ProtectedRoute />}>
           <Route path="/dashboard" element={<Dashboard />} />
-          {/* Aquí puedes meter más rutas protegidas en el futuro como /perfil o /ajustes */}
         </Route>
 
-        {/* --- ERROR 404 --- */}
         <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>
