@@ -97,7 +97,6 @@ export const UserForm = ({ user, onSave, onCancel, isSameUser: isSameUserProp }:
                         )}
                     </div>
 
-                    {/* Campo de ESTADO */}
                     {canSeeStatus ? (
                         <div className="space-y-1">
                             <label className="text-xs font-semibold text-slate-500 uppercase ml-1">Estado</label>
