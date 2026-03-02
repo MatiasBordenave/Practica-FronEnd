@@ -35,30 +35,24 @@ export const useUsers = (refreshCallback: () => void) => {
 
             if (response.ok) {
                 const result = await response.json();
+                // Importante: Asegúrate de qué estructura devuelve tu backend
                 const updatedUserData = result.user || result;
 
-                // Si editamos nuestro propio perfil, actualizamos el store global
-                if (id && String(id) === String(currentUser?.id)) {
-                    
-                    // USAMOS UPDATEUSER EN LUGAR DE SETAUTH
+                // 1. Si es mi propio perfil, actualizo el store global
+                if (id && String(id) === String(currentUser?.id || currentUser?._id)) {
                     updateUser(updatedUserData);
-                    
-                    // Validamos si el rol cambió para refrescar la seguridad de la App
-                    if (updatedUserData.role !== currentUser.role) {
-                        // Un pequeño delay para que Zustand persista en LocalStorage antes de recargar
-                        setTimeout(() => {
-                            window.location.reload();
-                        }, 300);
-                    }
                 }
                 
+                // 2. Ejecutamos el callback para refrescar la tabla de usuarios
                 refreshCallback(); 
-                return true;
+
+                // 3. Devolvemos el usuario actualizado para que el Form sepa que terminó
+                return updatedUserData; 
             }
         } catch (err) {
-            console.error("Error:", err);
+            console.error("Error en saveUser:", err);
         }
-        return false;
+        return null;
     };
 
     return { deleteUser, saveUser };

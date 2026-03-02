@@ -1,36 +1,69 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../store/useAuthStore';
 
-// Agregamos isSameUser a las props por si lo mandas desde el Dashboard
 export const UserForm = ({ user, onSave, onCancel, isSameUser: isSameUserProp }: any) => {
     const currentUser = useAuthStore((state: any) => state.user);
     
+    // 1. SOLUCIÓN AL REFRESCO: Sincronizar el estado cuando la prop 'user' cambie
     const [formData, setFormData] = useState({
-        username: user?.username || '',
-        email: user?.email || '',
+        username: '',
+        email: '',
         password: '',
-        role: user?.role || 'usuario',
-        status: user?.status || 'active'
+        role: 'usuario',
+        status: 'active'
     });
 
-    // --- LÓGICA DE VALIDACIÓN ---
-    
-    // Calculamos si es el mismo usuario (por si la prop no viene)
+    useEffect(() => {
+        if (user) {
+            setFormData({
+                username: user.username || '',
+                email: user.email || '',
+                password: '', // Password siempre vacío en edición por seguridad
+                role: user.role || 'usuario',
+                status: user.status || 'active'
+            });
+        }
+    }, [user]); // Cada vez que el usuario seleccionado cambie, actualizamos el form
+
+    // --- LÓGICA DE RANGOS ---
     const currentId = currentUser?.id || currentUser?._id;
     const targetId = user?.id || user?._id;
     const isOwnProfile = isSameUserProp ?? Boolean(currentId && targetId && String(currentId) === String(targetId));
 
     const isSuperAdmin = currentUser?.role?.toLowerCase() === 'superadmin';
+    const isAdmin = currentUser?.role?.toLowerCase() === 'admin';
 
-    /**
-     * REGLA DE NEGOCIO:
-     * 1. canChangeRole: Si es Superadmin Y NO es su propio perfil, puede cambiar el rol.
-     * 2. canSeeStatus: Solo los Superadmins ven el campo de estado.
-     * 3. canEditStatus: Un Superadmin no puede cambiarse el estado (desactivarse) a sí mismo.
-     */
+    // Definimos permisos claros
     const canChangeRole = isSuperAdmin && !isOwnProfile;
-    const canSeeStatus = isSuperAdmin;
+    const canSeeStatus = isSuperAdmin || isAdmin;
     const canEditStatus = isSuperAdmin && !isOwnProfile;
+
+    // 2. SOLUCIÓN A LA SEGURIDAD: Validación en el Submit
+   const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // --- VALIDACIÓN DE RANGOS (Front-end blindado) ---
+    // 1. Un Admin NO puede crear/editar a un Superadmin
+    if (formData.role === 'superadmin' && !isSuperAdmin) {
+        alert("No tienes rango suficiente para asignar 'Superadmin'.");
+        setFormData({...formData, role: user?.role || 'usuario'});
+        return;
+    }
+
+    // 2. Un Admin NO puede editar a otro Admin (Jerarquía estricta)
+    if (isAdmin && user?.role === 'admin' && !isOwnProfile) {
+        alert("Un administrador no puede editar a otro administrador.");
+        return;
+    }
+
+    // Ejecutamos el onSave que viene del Dashboard/Parent
+    const success = await onSave(formData, user?.id);
+    
+    if (success) {
+        // Opcional: Podrías limpiar el password si no se cierra el modal
+        setFormData(prev => ({ ...prev, password: '' }));
+    }
+};
 
     return (
         <div className="bg-slate-800 p-8 rounded-3xl border border-slate-700 shadow-2xl max-w-2xl mx-auto transition-all">
@@ -44,7 +77,7 @@ export const UserForm = ({ user, onSave, onCancel, isSameUser: isSameUserProp }:
                 </p>
             </div>
 
-            <form onSubmit={(e) => { e.preventDefault(); onSave(formData, user?.id); }} className="space-y-5">
+            <form onSubmit={handleSubmit} className="space-y-5">
                 {/* Username */}
                 <div className="space-y-1">
                     <label className="text-xs font-semibold text-slate-500 uppercase ml-1">Username</label>
@@ -52,6 +85,7 @@ export const UserForm = ({ user, onSave, onCancel, isSameUser: isSameUserProp }:
                         className="w-full bg-slate-900/50 text-white p-4 rounded-2xl border border-slate-700 focus:border-blue-500 outline-none"
                         value={formData.username}
                         onChange={(e) => setFormData({...formData, username: e.target.value})}
+                        required
                     />
                 </div>
 
@@ -59,9 +93,11 @@ export const UserForm = ({ user, onSave, onCancel, isSameUser: isSameUserProp }:
                 <div className="space-y-1">
                     <label className="text-xs font-semibold text-slate-500 uppercase ml-1">Email</label>
                     <input 
+                        type="email"
                         className="w-full bg-slate-900/50 text-white p-4 rounded-2xl border border-slate-700 focus:border-blue-500 outline-none"
                         value={formData.email}
                         onChange={(e) => setFormData({...formData, email: e.target.value})}
+                        required
                     />
                 </div>
 
@@ -72,6 +108,7 @@ export const UserForm = ({ user, onSave, onCancel, isSameUser: isSameUserProp }:
                             type="password"
                             className="w-full bg-slate-900/50 text-white p-4 rounded-2xl border border-slate-700 focus:border-blue-500 outline-none"
                             onChange={(e) => setFormData({...formData, password: e.target.value})}
+                            required={!user}
                         />
                     </div>
                 )}
@@ -90,10 +127,10 @@ export const UserForm = ({ user, onSave, onCancel, isSameUser: isSameUserProp }:
                             <option value="admin">Admin</option>
                             <option value="superadmin">Superadmin</option>
                         </select>
-                        {!canChangeRole && isOwnProfile && (
-                            <p className="text-[10px] text-amber-500 mt-1 ml-1 italic">
-                                No puedes cambiar tu propio rango.
-                            </p>
+                        {!canChangeRole && (
+                             <p className="text-[10px] text-amber-500 mt-1 ml-1 italic">
+                                {isOwnProfile ? "No puedes cambiar tu propio rango." : "Solo Superadmins cambian roles."}
+                             </p>
                         )}
                     </div>
 
