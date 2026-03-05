@@ -33,34 +33,26 @@ export const UserForm = ({ user, onSave, onCancel, isSameUser: isSameUserProp }:
     const isSuperAdmin = currentUser?.role?.toLowerCase() === 'superadmin';
     const isAdmin = currentUser?.role?.toLowerCase() === 'admin';
 
-    // Definimos permisos claros
     const canChangeRole = isSuperAdmin && !isOwnProfile;
     const canSeeStatus = isSuperAdmin || isAdmin;
     const canEditStatus = isSuperAdmin && !isOwnProfile;
 
-    // 2. SOLUCIÓN A LA SEGURIDAD: Validación en el Submit
    const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // --- VALIDACIÓN DE RANGOS (Front-end blindado) ---
-    // 1. Un Admin NO puede crear/editar a un Superadmin
     if (formData.role === 'superadmin' && !isSuperAdmin) {
         alert("No tienes rango suficiente para asignar 'Superadmin'.");
         setFormData({...formData, role: user?.role || 'usuario'});
         return;
     }
 
-    // 2. Un Admin NO puede editar a otro Admin (Jerarquía estricta)
     if (isAdmin && user?.role === 'admin' && !isOwnProfile) {
         alert("Un administrador no puede editar a otro administrador.");
         return;
     }
-
-    // Ejecutamos el onSave que viene del Dashboard/Parent
     const success = await onSave(formData, user?.id);
     
     if (success) {
-        // Opcional: Podrías limpiar el password si no se cierra el modal
         setFormData(prev => ({ ...prev, password: '' }));
     }
 };
